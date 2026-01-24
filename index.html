@@ -58,6 +58,20 @@
         </div>
     </div>
 
+<footer class="max-w-6xl mx-auto w-full text-center py-12 border-t border-white/5 mt-20">
+        <div class="flex justify-center gap-6 mb-4 text-gray-500 text-sm font-bold uppercase tracking-widest">
+            <a href="https://bandit.camp/affiliates" target="_blank" class="hover:text-cyan-400 transition">Bandit Affiliates</a>
+            <span class="opacity-20">|</span>
+            <a href="https://steamcommunity.com/id/monkill" target="_blank" class="hover:text-cyan-400 transition">Contact Admin</a>
+        </div>
+        <p class="text-[10px] text-gray-600 uppercase tracking-[0.2em] mb-2">
+            &copy; 2024-2026 MONKILL.GG - ALL RIGHTS RESERVED
+        </p>
+        <p class="text-[9px] text-gray-700 max-w-xl mx-auto leading-relaxed">
+Btw im monkill and im not gay. maybe.
+        </p>
+    </footer>
+
     <script>
         const WORKER_URL = 'https://monkill-api.q23lo2rj3e2ioh4.workers.dev/'; 
         const prizes = [50, 30, 20];
@@ -157,7 +171,7 @@
 
         setInterval(() => {
             const now = new Date();
-            document.getElementById('refresh-timer').innerText = `Next API Sync: ${(59-now.getMinutes()).toString().padStart(2,'0')}:${(59-now.getSeconds()).toString().padStart(2,'0')}`;
+            document.getElementById('refresh-timer').innerText = `Next Update: ${(59-now.getMinutes()).toString().padStart(2,'0')}:${(59-now.getSeconds()).toString().padStart(2,'0')}`;
             const end = new Date();
             end.setDate(now.getDate() + (7 - now.getDay()));
             end.setHours(23, 59, 59);
