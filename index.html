@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MONKILL Leaderboard | Anonymous</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        
+        body { background-color: #0b0e13; color: white; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+
+        /* Cyan Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0b0e13; }
+        ::-webkit-scrollbar-thumb { background: #06b6d4; border-radius: 10px; }
+
+        .podium-card { background: linear-gradient(180deg, #161b22 0%, #0d1117 100%); border: 1px solid #30363d; border-radius: 1.5rem; transition: all 0.4s ease; }
+        .rank-1 { border-color: #06b6d4; box-shadow: 0 0 40px rgba(6, 182, 212, 0.15); transform: scale(1.08); z-index: 10; }
+        .rank-row { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 0.75rem; }
+        .avatar-frame { border: 2px solid #30363d; padding: 2px; background: #0d1117; }
+        .rank-1 .avatar-frame { border-color: #06b6d4; }
+        .admin-badge { background: #06b6d4; color: black; font-size: 8px; padding: 2px 4px; border-radius: 3px; font-weight: bold; margin-left: 5px; }
+    </style>
+</head>
+<body class="p-6 md:p-12">
+
+    <div class="max-w-6xl mx-auto">
+        <div class="text-center mb-12">
+            <img src="https://bandit.camp/img/logo.bca3d859.png" alt="Bandit Logo" class="mx-auto mb-6 w-44">
+            <h1 class="text-5xl font-black italic uppercase tracking-tighter mb-4">
+                BROKE CODE <span class="text-cyan-400">MONKILL</span> LEADERBOARD
+            </h1>
+            
+            <div class="flex justify-center items-center gap-3">
+                <div class="bg-cyan-400/10 border border-cyan-400/20 px-4 py-1 rounded-full text-[10px] font-bold text-cyan-400 tracking-widest uppercase flex items-center gap-2">
+                    <span id="countdown">00:00</span> UNTIL REFRESH
+                </div>
+            </div>
+        </div>
+
+        <div id="podium-area" class="flex flex-wrap justify-center items-end gap-8 mb-20 min-h-[400px]">
+            <div id="status" class="text-cyan-400 animate-pulse font-bold tracking-widest uppercase">Securing Connection...</div>
+        </div>
+
+        <div class="max-w-5xl mx-auto bg-[#0d1117]/50 p-6 rounded-3xl border border-white/5">
+            <div class="grid grid-cols-4 text-gray-500 uppercase text-[10px] font-bold tracking-widest px-8 mb-6">
+                <div>Rank</div>
+                <div>User</div>
+                <div class="text-center">Reward</div>
+                <div class="text-right">Wagered</div>
+            </div>
+            <div id="leaderboard-list" class="space-y-3"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- SECURE CONFIG ---
+        const BANDIT_KEY = 'e51f37d1ee906748cfe0e2aad5586282:ec8642823c82fc003ab4f22049ed7094f94cd303a14dbb7e4c798ffc6fdbff10';
+        const STEAM_KEY = '8D9EC4C9991CCD6B5EBC6B0F3EF6B30E'; // PASTE YOUR KEY HERE
+        const PROXY = 'https://corsproxy.io/?';
+
+        // Check if Admin Mode is enabled via URL: ?admin=true
+        const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
+
+        const prizes = [50, 25, 0, 0, 0, 0, 0, 0, 0, 0];
+
+        // Masking Function: "Gamer" -> "Ga***"
+        function maskName(name) {
+            if (isAdmin) return name; // Show full name if admin
+            if (!name) return "Anonymous";
+            return name.length > 2 ? name.substring(0, 2) + "***" : name + "**";
+        }
+
+        function formatWager(raw) {
+            return (raw / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        async function init() {
+            const statusEl = document.getElementById('status');
+            const now = new Date();
+            const past = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+            
+            try {
+                const banditUrl = `https://api.bandit.camp/affiliates/leaderboard?limit=50&start=${past.toISOString()}&end=${now.toISOString()}`;
+                const banditRes = await fetch(PROXY + encodeURIComponent(banditUrl), {
+                    headers: { 'Authorization': `Bearer ${BANDIT_KEY}` }
+                });
+
+                const banditData = await banditRes.json();
+                if (!banditData.success || !banditData.response.length) {
+                    statusEl.innerText = "NO RECENT ACTIVITY.";
+                    return;
+                }
+
+                const players = banditData.response;
+                const steamIds = players.map(p => p.steamid).join(',');
+
+                let steamProfiles = {};
+                if (STEAM_KEY !== 'YOUR_STEAM_API_KEY') {
+                    try {
+                        const steamRes = await fetch(PROXY + encodeURIComponent(`https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAM_KEY}&steamids=${steamIds}`));
+                        const steamData = await steamRes.json();
+                        steamProfiles = steamData.response.players.reduce((acc, u) => ({...acc, [u.steamid]: u}), {});
+                    } catch (e) { console.warn("Steam Data Hidden"); }
+                }
+
+                const enriched = players.map(p => ({
+                    ...p,
+                    safeName: maskName(steamProfiles[p.steamid]?.personaname || p.steamid),
+                    avatar: steamProfiles[p.steamid]?.avatarfull || 'https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg'
+                }));
+
+                statusEl.style.display = 'none';
+                render(enriched);
+            } catch (err) {
+                statusEl.innerText = "SYSTEM ERROR.";
+            }
+        }
+
+        function render(players) {
+            const podium = document.getElementById('podium-area');
+            const list = document.getElementById('leaderboard-list');
+            podium.innerHTML = '';
+            list.innerHTML = '';
+
+            const top3 = [players[1], players[0], players[2]];
+            top3.forEach((p, i) => {
+                if (!p) return;
+                const rank = players.indexOf(p);
+                const isFirst = rank === 0;
+                podium.innerHTML += `
+                    <div class="podium-card p-8 text-center ${isFirst ? 'w-80 h-96 rank-1' : 'w-64 h-80 opacity-90'}">
+                        <div class="text-[10px] font-bold text-gray-500 mb-4 uppercase tracking-widest">Rank ${rank + 1}</div>
+                        <img src="${p.avatar}" class="w-24 h-24 rounded-2xl mx-auto mb-4 avatar-frame">
+                        <div class="text-lg font-bold text-white truncate mb-1 px-4">
+                            ${p.safeName} ${isAdmin ? '<span class="admin-badge">ADMIN VIEW</span>' : ''}
+                        </div>
+                        ${isAdmin ? `<div class="text-[9px] text-cyan-700 font-mono mb-2">${p.steamid}</div>` : ''}
+                        <div class="text-[11px] text-gray-500 mb-6 font-mono">$${formatWager(p.wagered)}</div>
+                        <div class="text-4xl font-black text-cyan-400 italic">💰 $${prizes[rank] || 0}</div>
+                    </div>`;
+            });
+
+            players.slice(3).forEach((p, i) => {
+                const rank = i + 4;
+                list.innerHTML += `
+                    <div class="rank-row flex justify-between items-center p-4 px-8">
+                        <div class="text-cyan-500 font-black italic w-12 text-lg">#${rank}</div>
+                        <div class="flex items-center gap-4 flex-1">
+                            <img src="${p.avatar}" class="w-10 h-10 rounded-lg avatar-frame">
+                            <div class="flex flex-col">
+                                <span class="font-bold text-sm text-gray-200">${p.safeName}</span>
+                                ${isAdmin ? `<span class="text-[9px] text-cyan-800 font-mono">${p.steamid}</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="text-cyan-400 font-bold w-24 text-center">💰 $${prizes[rank-1] || 0}</div>
+                        <div class="font-mono text-white font-bold w-32 text-right">$${formatWager(p.wagered)}</div>
+                    </div>`;
+            });
+        }
+
+        // Timer
+        setInterval(() => {
+            const now = new Date();
+            const min = 59 - now.getMinutes();
+            const sec = 59 - now.getSeconds();
+            document.getElementById('countdown').innerText = `${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
+        }, 1000);
+
+        init();
+    </script>
+</body>
+</html>
