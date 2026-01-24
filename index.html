@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MONKILL | Leaderboard</title>
+    <title>MONKILL | Pro Leaderboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
@@ -11,120 +11,165 @@
         .podium-card { background: linear-gradient(180deg, #161b22 0%, #0d1117 100%); border: 1px solid #30363d; border-radius: 1.5rem; transition: all 0.4s ease; }
         .rank-1 { border-color: #06b6d4; box-shadow: 0 0 40px rgba(6, 182, 212, 0.15); transform: scale(1.05); }
         .rank-row { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 0.75rem; }
-        .avatar-frame { border: 2px solid #30363d; padding: 2px; background: #0d1117; border-radius: 0.75rem; }
+        .tab-btn { transition: all 0.3s; border-bottom: 2px solid transparent; }
+        .tab-btn.active { border-color: #06b6d4; color: #06b6d4; }
+        .hidden { display: none; }
     </style>
 </head>
 <body class="p-4 md:p-12">
 
     <div class="max-w-6xl mx-auto">
-        <div class="text-center mb-12">
+        <div class="text-center mb-8">
             <img src="https://bandit.camp/img/logo.bca3d859.png" alt="Bandit Logo" class="mx-auto mb-6 w-44">
             <h1 class="text-4xl md:text-5xl font-black italic uppercase tracking-tighter mb-4">
-                💰 CODE <span class="text-cyan-400">MONKILL</span> LEADERBOARD
+                💰 CODE <span class="text-cyan-400">MONKILL</span>
             </h1>
-            <div id="countdown-box" class="inline-block bg-cyan-400/10 border border-cyan-400/20 px-4 py-1 rounded-full text-[10px] font-bold text-cyan-400 tracking-widest uppercase">
-                Syncing Live...
+            <div id="event-timer" class="text-cyan-400 font-mono font-bold text-lg mb-2">ENDS IN: 00d 00h 00m</div>
+            <div id="refresh-timer" class="text-[10px] text-gray-500 uppercase tracking-widest">Next API Sync: 00:00</div>
+        </div>
+
+        <div class="flex justify-center gap-8 mb-8 border-b border-white/10">
+            <button onclick="switchTab('live')" id="tab-live" class="tab-btn active pb-2 font-bold uppercase tracking-widest text-sm">Live Leaderboard</button>
+            <button onclick="switchTab('history')" id="tab-history" class="tab-btn pb-2 font-bold uppercase tracking-widest text-sm text-gray-500">Previous Winners</button>
+        </div>
+
+        <div id="content-live">
+            <div id="podium-area" class="flex flex-wrap justify-center items-end gap-6 mb-20 min-h-[400px]">
+                <div id="status" class="text-cyan-400 animate-pulse font-bold">LOADING DATA...</div>
+            </div>
+            <div class="max-w-5xl mx-auto bg-[#0d1117]/50 p-6 rounded-3xl border border-white/5 shadow-2xl">
+                <div class="flex justify-between px-6 mb-4 text-[10px] font-bold text-gray-500 uppercase">
+                    <div class="w-8">Rank</div>
+                    <div class="flex-1 ml-10">User</div>
+                    <div class="w-24 text-center">Prize</div>
+                    <div class="w-24 text-right">Wagered</div>
+                </div>
+                <div id="leaderboard-list" class="space-y-3"></div>
             </div>
         </div>
 
-        <div id="podium-area" class="flex flex-wrap justify-center items-end gap-6 mb-20 min-h-[400px]">
-            <div id="status" class="text-cyan-400 animate-pulse font-bold tracking-widest uppercase">Connecting to Secure Server...</div>
-        </div>
-
-        <div class="max-w-5xl mx-auto bg-[#0d1117]/50 p-6 rounded-3xl border border-white/5 shadow-2xl">
-            <div id="leaderboard-list" class="space-y-3"></div>
+        <div id="content-history" class="hidden">
+            <div class="max-w-3xl mx-auto bg-[#0d1117]/50 p-8 rounded-3xl border border-white/5 text-center">
+                <h2 class="text-2xl font-bold mb-4">Last Week's Champions</h2>
+                <div id="history-list" class="space-y-4 text-gray-400 italic">
+                    No history saved yet. Winners are recorded when the event resets!
+                </div>
+            </div>
         </div>
     </div>
 
-<script>
-    const WORKER_URL = 'https://monkill-api.q23lo2rj3e2ioh4.workers.dev/'; 
-    const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
-    const prizes = [350, 240, 150, 100, 50, 30, 25, 20, 15, 10];
+    <script>
+        const WORKER_URL = 'https://monkill-api.q23lo2rj3e2ioh4.workers.dev/'; 
+        const prizes = [50, 30, 20];
 
-    function maskName(name) {
-        if (isAdmin) return name;
-        return name.length > 2 ? name.substring(0, 2) + "***" : name + "**";
-    }
-
-    function startTimer() {
-        const display = document.getElementById('countdown-box');
-        setInterval(() => {
-            const now = new Date();
-            const minutes = 59 - now.getMinutes();
-            const seconds = 59 - now.getSeconds();
-            display.innerText = `NEXT REFRESH: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            if (minutes === 0 && seconds === 0) init();
-        }, 1000);
-    }
-
-    async function init() {
-        const statusEl = document.getElementById('status');
-        const now = new Date();
-        const past = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
-        
-        try {
-            const res = await fetch(`${WORKER_URL}?start=${past.toISOString()}&end=${now.toISOString()}`);
-            const data = await res.json();
-
-            if (!data.players || data.players.length === 0) {
-                statusEl.innerText = "NO WAGERS FOUND.";
-                return;
-            }
-
-            const enriched = data.players.map(p => ({
-                ...p,
-                displayName: maskName(data.steam[p.steamid]?.personaname || p.steamid),
-                avatar: data.steam[p.steamid]?.avatarfull || 'https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg'
-            }));
-
-            statusEl.style.display = 'none';
-            render(enriched);
-        } catch (err) {
-            console.error(err);
-            statusEl.innerText = "CONNECTION ERROR.";
+        // 1. Tab Logic
+        function switchTab(tab) {
+            document.getElementById('content-live').classList.toggle('hidden', tab !== 'live');
+            document.getElementById('content-history').classList.toggle('hidden', tab !== 'history');
+            document.getElementById('tab-live').classList.toggle('active', tab === 'live');
+            document.getElementById('tab-history').classList.toggle('active', tab === 'history');
+            if(tab === 'history') renderHistory();
         }
-    }
 
-    function render(players) {
-        const podium = document.getElementById('podium-area');
-        const list = document.getElementById('leaderboard-list');
-        podium.innerHTML = ''; 
-        list.innerHTML = '';
+        // 2. 7-Day Event Countdown
+        function startEventTimer() {
+            const display = document.getElementById('event-timer');
+            // Logic: Event ends every Sunday at Midnight
+            const now = new Date();
+            const end = new Date();
+            end.setDate(now.getDate() + (7 - now.getDay()));
+            end.setHours(23, 59, 59);
 
-        const top3 = [players[1], players[0], players[2]];
-        top3.forEach((p, i) => {
-            if (!p) return;
-            const rank = players.indexOf(p);
-            podium.innerHTML += `
-                <div class="podium-card p-8 text-center ${rank === 0 ? 'w-80 h-96 rank-1' : 'w-64 h-80 opacity-90'}">
-                    <div class="text-[10px] font-bold text-gray-500 mb-4 uppercase tracking-widest">Rank ${rank+1}</div>
-                    <img src="${p.avatar}" class="w-20 h-20 rounded-xl mx-auto mb-4 avatar-frame">
-                    <div class="font-bold text-white truncate mb-1 px-4">${p.displayName}</div>
-                    ${isAdmin ? `<div class="text-[9px] text-cyan-600 mb-2 font-mono">${p.steamid}</div>` : ''}
-                    <div class="text-3xl font-black text-cyan-400 italic">💰 $${prizes[rank] || 0}</div>
-                </div>`;
-        });
+            setInterval(() => {
+                const currentTime = new Date();
+                const diff = end - currentTime;
+                const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
+                const m = Math.floor((diff / (1000 * 60)) % 60);
+                display.innerText = `ENDS IN: ${d}d ${h}h ${m}m`;
+            }, 1000);
+        }
 
-        players.slice(3).forEach((p, i) => {
-            const rank = i + 4;
-            list.innerHTML += `
-                <div class="rank-row flex justify-between items-center p-4 px-6">
-                    <div class="text-cyan-500 font-black w-8">#${rank}</div>
-                    <div class="flex items-center gap-3 flex-1">
-                        <img src="${p.avatar}" class="w-8 h-8 rounded-md avatar-frame">
-                        <div class="flex flex-col text-left">
-                            <span class="font-bold text-sm text-gray-200">${p.displayName}</span>
-                            ${isAdmin ? `<span class="text-[9px] text-cyan-800 font-mono">${p.steamid}</span>` : ''}
+        // 3. Sync Timer
+        function startSyncTimer() {
+            const display = document.getElementById('refresh-timer');
+            setInterval(() => {
+                const now = new Date();
+                display.innerText = `Next API Sync: ${(59-now.getMinutes()).toString().padStart(2,'0')}:${(59-now.getSeconds()).toString().padStart(2,'0')}`;
+            }, 1000);
+        }
+
+        async function init() {
+            const now = new Date();
+            const past = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+            try {
+                const res = await fetch(`${WORKER_URL}?start=${past.toISOString()}&end=${now.toISOString()}`);
+                const data = await res.json();
+                
+                const enriched = data.players.map(p => ({
+                    ...p,
+                    displayName: data.steam[p.steamid]?.personaname || p.steamid,
+                    avatar: data.steam[p.steamid]?.avatarfull || 'https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg'
+                }));
+
+                // Save to history automatically for the tab
+                localStorage.setItem('last_winners', JSON.stringify(enriched.slice(0, 3)));
+                
+                document.getElementById('status').style.display = 'none';
+                render(enriched);
+            } catch (err) { console.error(err); }
+        }
+
+        function render(players) {
+            const podium = document.getElementById('podium-area');
+            const list = document.getElementById('leaderboard-list');
+            podium.innerHTML = ''; list.innerHTML = '';
+
+            // Render Podium (Top 3)
+            [players[1], players[0], players[2]].forEach((p, i) => {
+                if (!p) return;
+                const rank = players.indexOf(p);
+                podium.innerHTML += `
+                    <div class="podium-card p-8 text-center ${rank === 0 ? 'w-80 h-96 rank-1' : 'w-64 h-80 opacity-90'}">
+                        <img src="${p.avatar}" class="w-20 h-20 rounded-xl mx-auto mb-4 avatar-frame">
+                        <div class="font-bold text-white truncate mb-1">${p.displayName.substring(0,2)}***</div>
+                        <div class="text-3xl font-black text-cyan-400 italic">💰 $${prizes[rank] || 0}</div>
+                        <div class="text-[10px] text-gray-500 mt-2">WAGERED: $${(p.wagered/100).toLocaleString()}</div>
+                    </div>`;
+            });
+
+            // Render All Other Affiliates (Full List)
+            players.slice(3).forEach((p, i) => {
+                const rank = i + 4;
+                list.innerHTML += `
+                    <div class="rank-row flex justify-between items-center p-4 px-6">
+                        <div class="text-cyan-500 font-black w-8">#${rank}</div>
+                        <div class="flex items-center gap-3 flex-1 ml-4">
+                            <img src="${p.avatar}" class="w-8 h-8 rounded-md avatar-frame">
+                            <span class="font-bold text-sm text-gray-200">${p.displayName.substring(0,2)}***</span>
                         </div>
-                    </div>
-                    <div class="text-cyan-400 font-bold w-20 text-center">💰 $${prizes[rank-1] || 0}</div>
-                    <div class="font-mono text-white text-right w-24 font-bold">$${(p.wagered/100).toLocaleString()}</div>
-                </div>`;
-        });
-    }
+                        <div class="text-cyan-400 font-bold w-24 text-center">$${prizes[rank-1] || 0}</div>
+                        <div class="font-mono text-white text-right w-24">$${(p.wagered/100).toLocaleString()}</div>
+                    </div>`;
+            });
+        }
 
-    startTimer();
-    init();
-</script>
+        function renderHistory() {
+            const history = JSON.parse(localStorage.getItem('last_winners'));
+            const container = document.getElementById('history-list');
+            if(!history) return;
+            container.innerHTML = history.map((p, i) => `
+                <div class="flex items-center justify-between bg-white/5 p-4 rounded-xl">
+                    <span class="font-black text-cyan-400">#${i+1}</span>
+                    <span>${p.displayName.substring(0,2)}***</span>
+                    <span class="text-white font-bold">$${prizes[i]} PRIZE</span>
+                </div>
+            `).join('');
+        }
+
+        startEventTimer();
+        startSyncTimer();
+        init();
+    </script>
 </body>
 </html>
