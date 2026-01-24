@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MONKILL | Secure Leaderboard</title>
+    <title>MONKILL | Leaderboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
@@ -20,7 +20,7 @@
         <div class="text-center mb-12">
             <img src="https://bandit.camp/img/logo.bca3d859.png" alt="Bandit Logo" class="mx-auto mb-6 w-44">
             <h1 class="text-4xl md:text-5xl font-black italic uppercase tracking-tighter mb-4">
-                💰 CODE <span class="text-cyan-400">GUAP</span> LEADERBOARD
+                💰 CODE <span class="text-cyan-400">MONKILL</span> LEADERBOARD
             </h1>
             <div id="countdown-box" class="inline-block bg-cyan-400/10 border border-cyan-400/20 px-4 py-1 rounded-full text-[10px] font-bold text-cyan-400 tracking-widest uppercase">
                 Syncing Live...
@@ -40,7 +40,7 @@
         // YOUR SECURE WORKER URL
         const WORKER_URL = 'https://monkill-api.q23lo2rj3e2ioh4.workers.dev/'; 
         const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
-        const prizes = [350, 240, 150, 100, 50, 30, 25, 20, 15, 10];
+        const prizes = [50, 30, 20, 0, 0, 0, 0, 0, 0, 0];
 
         function maskName(name) {
             if (isAdmin) return name;
