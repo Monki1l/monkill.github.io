@@ -169,15 +169,24 @@ Btw im monkill and im not gay. maybe.
             `).join('');
         }
 
-        setInterval(() => {
-            const now = new Date();
-            document.getElementById('refresh-timer').innerText = `Next Update: ${(59-now.getMinutes()).toString().padStart(2,'0')}:${(59-now.getSeconds()).toString().padStart(2,'0')}`;
-            const end = new Date();
-            end.setDate(now.getDate() + (7 - now.getDay()));
-            end.setHours(23, 59, 59);
-            const diff = end - now;
-            document.getElementById('event-timer').innerText = `ENDS IN: ${Math.floor(diff/(1000*60*60*24))}d ${Math.floor((diff/(1000*60*60))%24)}h ${Math.floor((diff/(1000*60))%60)}m`;
-        }, 1000);
+setInterval(() => {
+    const now = new Date();
+    
+    // Calculate next Monday at Midnight
+    const nextMonday = new Date();
+    nextMonday.setDate(now.getDate() + (8 - (now.getDay() || 7)));
+    nextMonday.setHours(0, 0, 0, 0);
+
+    const diff = nextMonday - now;
+    const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
+    const m = Math.floor((diff / (1000 * 60)) % 60);
+    const s = Math.floor((diff / 1000) % 60);
+
+    // Update Display
+    document.getElementById('event-timer').innerText = `RESET IN: ${d}d ${h}h ${m}m ${s}s`;
+    document.getElementById('refresh-timer').innerText = `Next API Sync: ${(59-now.getMinutes()).toString().padStart(2,'0')}:${(59-now.getSeconds()).toString().padStart(2,'0')}`;
+}, 1000);
 
         init();
     </script>
